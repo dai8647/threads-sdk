@@ -1,0 +1,35 @@
+# Threads Auto-Poster 設定
+
+llm:
+  provider: "nvidia"  # "nvidia" or "local"
+  nvidia:
+    api_key: "${NVIDIA_API_KEY}"
+    model: "meta/llama-3.1-8b-instruct"
+    base_url: "https://integrate.api.nvidia.com/v1"
+  local:
+    url: "http://localhost:8080/v1"
+    model: "tq3-4s-27b"
+
+threads:
+  token: "${THREADS_TOKEN}"
+  user_id: "${THREADS_USER_ID}"
+
+schedule:
+  interval_hours: 4
+  max_posts_per_day: 6
+  randomize_minutes: 30  # ±30分のランダム化
+
+posting:
+  active_persona: "tech_guru"  # デフォルトキャラ
+  history_file: "config/post_history.json"
+
+affiliate:
+  enabled: true
+  frequency: 5  # 5回に1回の投稿でアフィリンクを貼る
+  links:
+    - url: "https://amzn.to/xxx"
+      context: "AI関連書籍"
+      keywords: ["AI", "機械学習", "Python"]
+    - url: "https://amzn.to/yyy"
+      context: "プログラミング学習"
+      keywords: ["プログラミング", "学習", "初心者"]
