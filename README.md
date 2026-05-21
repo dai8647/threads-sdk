@@ -107,7 +107,7 @@ threads-sdk insights <post-id>
 ## Contributing
 
 ```bash
-git clone https://github.com/dai86/threads-sdk
+git clone https://github.com/dai8647/threads-sdk
 cd threads-sdk
 pip install -e ".[dev]"
 pytest
@@ -117,8 +117,8 @@ pytest
 
 If you find this useful, consider supporting:
 
-- [GitHub Sponsors](https://github.com/sponsors/dai86)
-- [Ko-fi](https://ko-fi.com/dai86)
+- [GitHub Sponsors](https://github.com/sponsors/dai8647)
+- [PayPal](https://paypal.me/daisuke8647)
 
 ## License
 
