@@ -57,10 +57,60 @@ def main():
     parser.add_argument("--loop", action="store_true", help="Run in loop mode")
     parser.add_argument("--list-personas", action="store_true", help="List available personas")
     parser.add_argument("--provider", choices=["nvidia", "local"], help="LLM provider to use")
+    parser.add_argument("--interval", type=float, help="Post interval in hours (e.g. 4)")
+    parser.add_argument("--max-posts", type=int, help="Max posts per day")
+    parser.add_argument("--affiliate-freq", type=int, help="Affiliate link frequency (every N posts)")
+    parser.add_argument("--set-provider", choices=["nvidia", "local"], help="Change default provider in config file")
+    parser.add_argument("--set-persona", help="Change default persona in config file")
+    parser.add_argument("--show-config", action="store_true", help="Show current config")
     args = parser.parse_args()
 
     # Load config
     config = load_config(args.config)
+
+    # Show config
+    if args.show_config:
+        llm = config.get("llm", {})
+        schedule = config.get("schedule", {})
+        affiliate = config.get("affiliate", {})
+        posting = config.get("posting", {})
+        print(f"LLM Provider:    {llm.get('provider', 'nvidia')}")
+        print(f"  NVIDIA Model:  {llm.get('nvidia', {}).get('model', 'N/A')}")
+        print(f"  Local URL:     {llm.get('local', {}).get('url', 'N/A')}")
+        print(f"  Local Model:   {llm.get('local', {}).get('model', 'N/A')}")
+        print(f"Interval:        {schedule.get('interval_hours', 4)}h")
+        print(f"Max posts/day:   {schedule.get('max_posts_per_day', 6)}")
+        print(f"Persona:         {posting.get('active_persona', 'tech_guru')}")
+        print(f"Affiliate:       {'ON' if affiliate.get('enabled', False) else 'OFF'} (every {affiliate.get('frequency', 5)} posts)")
+        return
+
+    # Set provider in config
+    if args.set_provider:
+        with open(args.config, encoding="utf-8") as f:
+            raw = yaml.safe_load(f)
+        raw.setdefault("llm", {})["provider"] = args.set_provider
+        with open(args.config, "w", encoding="utf-8") as f:
+            yaml.dump(raw, f, allow_unicode=True, default_flow_style=False)
+        print(f"Default provider set to: {args.set_provider}")
+        config = load_config(args.config)
+
+    # Set persona in config
+    if args.set_persona:
+        with open(args.config, encoding="utf-8") as f:
+            raw = yaml.safe_load(f)
+        raw.setdefault("posting", {})["active_persona"] = args.set_persona
+        with open(args.config, "w", encoding="utf-8") as f:
+            yaml.dump(raw, f, allow_unicode=True, default_flow_style=False)
+        print(f"Default persona set to: {args.set_persona}")
+        config = load_config(args.config)
+
+    # Apply CLI overrides to config
+    if args.interval:
+        config.setdefault("schedule", {})["interval_hours"] = args.interval
+    if args.max_posts:
+        config.setdefault("schedule", {})["max_posts_per_day"] = args.max_posts
+    if args.affiliate_freq:
+        config.setdefault("affiliate", {})["frequency"] = args.affiliate_freq
 
     # List personas
     if args.list_personas:
