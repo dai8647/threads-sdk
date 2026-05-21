@@ -118,7 +118,7 @@ pytest
 If you find this useful, consider supporting:
 
 - [GitHub Sponsors](https://github.com/sponsors/dai8647)
-- [Ko-fi](https://ko-fi.com/dai8647)
+- [Ko-fi](https://ko-fi.com/danny8647)
 
 ## License
 
