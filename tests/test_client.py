@@ -9,13 +9,13 @@ from threads_sdk.exceptions import ThreadsError, NotFoundError, RateLimitError
 
 @respx.mock
 def test_create_text_post(mock_credentials):
-    respx.post("https://graph.threads.net/12345/threads").mock(
+    respx.post("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(200, json={"id": "container_001"})
     )
-    respx.get("https://graph.threads.net/container_001").mock(
+    respx.get("https://graph.threads.net/v1.0/container_001").mock(
         return_value=httpx.Response(200, json={"id": "container_001", "status": "FINISHED"})
     )
-    respx.post("https://graph.threads.net/container_001/publish").mock(
+    respx.post("https://graph.threads.net/v1.0/me/threads_publish").mock(
         return_value=httpx.Response(200, json={"id": "post_001"})
     )
     client = ThreadsClient(credentials=mock_credentials)
@@ -25,13 +25,13 @@ def test_create_text_post(mock_credentials):
 
 @respx.mock
 def test_create_image_post(mock_credentials):
-    respx.post("https://graph.threads.net/12345/threads").mock(
+    respx.post("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(200, json={"id": "container_002"})
     )
-    respx.get("https://graph.threads.net/container_002").mock(
+    respx.get("https://graph.threads.net/v1.0/container_002").mock(
         return_value=httpx.Response(200, json={"id": "container_002", "status": "FINISHED"})
     )
-    respx.post("https://graph.threads.net/container_002/publish").mock(
+    respx.post("https://graph.threads.net/v1.0/me/threads_publish").mock(
         return_value=httpx.Response(200, json={"id": "post_002"})
     )
     client = ThreadsClient(credentials=mock_credentials)
@@ -41,7 +41,7 @@ def test_create_image_post(mock_credentials):
 
 @respx.mock
 def test_get_user_posts(mock_credentials):
-    respx.get("https://graph.threads.net/12345/threads").mock(
+    respx.get("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(200, json={
             "data": [
                 {"id": "p1", "text": "Post 1", "media_type": "TEXT", "username": "testuser"},
@@ -58,7 +58,7 @@ def test_get_user_posts(mock_credentials):
 
 @respx.mock
 def test_get_post_replies(mock_credentials):
-    respx.get("https://graph.threads.net/post_123/replies").mock(
+    respx.get("https://graph.threads.net/v1.0/post_123/replies").mock(
         return_value=httpx.Response(200, json={
             "data": [
                 {"id": "reply_1", "text": "Nice!", "username": "someone"},
@@ -73,7 +73,7 @@ def test_get_post_replies(mock_credentials):
 
 @respx.mock
 def test_get_post_insights(mock_credentials):
-    respx.get("https://graph.threads.net/post_123/insights").mock(
+    respx.get("https://graph.threads.net/v1.0/post_123/insights").mock(
         return_value=httpx.Response(200, json={
             "data": [
                 {"name": "views", "values": [{"value": 1000}]},
@@ -89,7 +89,7 @@ def test_get_post_insights(mock_credentials):
 
 @respx.mock
 def test_get_user_profile(mock_credentials):
-    respx.get("https://graph.threads.net/12345").mock(
+    respx.get("https://graph.threads.net/v1.0/12345").mock(
         return_value=httpx.Response(200, json={
             "id": "12345",
             "username": "testuser",
@@ -105,13 +105,13 @@ def test_get_user_profile(mock_credentials):
 
 @respx.mock
 def test_reply_to_post(mock_credentials):
-    respx.post("https://graph.threads.net/12345/threads").mock(
+    respx.post("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(200, json={"id": "container_reply"})
     )
-    respx.get("https://graph.threads.net/container_reply").mock(
+    respx.get("https://graph.threads.net/v1.0/container_reply").mock(
         return_value=httpx.Response(200, json={"id": "container_reply", "status": "FINISHED"})
     )
-    respx.post("https://graph.threads.net/container_reply/publish").mock(
+    respx.post("https://graph.threads.net/v1.0/me/threads_publish").mock(
         return_value=httpx.Response(200, json={"id": "reply_post_001"})
     )
     client = ThreadsClient(credentials=mock_credentials)
@@ -121,7 +121,7 @@ def test_reply_to_post(mock_credentials):
 
 @respx.mock
 def test_client_handles_rate_limit(mock_credentials):
-    respx.get("https://graph.threads.net/12345/threads").mock(
+    respx.get("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(429, json={
             "error": {"message": "Rate limit exceeded", "type": "OAuthException"}
         })
@@ -133,7 +133,7 @@ def test_client_handles_rate_limit(mock_credentials):
 
 @respx.mock
 def test_client_handles_not_found(mock_credentials):
-    respx.get("https://graph.threads.net/nonexistent").mock(
+    respx.get("https://graph.threads.net/v1.0/nonexistent").mock(
         return_value=httpx.Response(404, json={
             "error": {"message": "Not found", "type": "OAuthException"}
         })

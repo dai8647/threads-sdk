@@ -13,13 +13,13 @@ def mock_credentials():
 
 @respx.mock
 async def test_async_create_text_post(mock_credentials):
-    respx.post("https://graph.threads.net/12345/threads").mock(
+    respx.post("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(200, json={"id": "container_async_001"})
     )
-    respx.get("https://graph.threads.net/container_async_001").mock(
+    respx.get("https://graph.threads.net/v1.0/container_async_001").mock(
         return_value=httpx.Response(200, json={"id": "container_async_001", "status": "FINISHED"})
     )
-    respx.post("https://graph.threads.net/container_async_001/publish").mock(
+    respx.post("https://graph.threads.net/v1.0/me/threads_publish").mock(
         return_value=httpx.Response(200, json={"id": "post_async_001"})
     )
     async with AsyncThreadsClient(credentials=mock_credentials) as client:
@@ -29,7 +29,7 @@ async def test_async_create_text_post(mock_credentials):
 
 @respx.mock
 async def test_async_get_user_posts(mock_credentials):
-    respx.get("https://graph.threads.net/12345/threads").mock(
+    respx.get("https://graph.threads.net/v1.0/12345/threads").mock(
         return_value=httpx.Response(200, json={
             "data": [
                 {"id": "p1", "text": "Async Post", "media_type": "TEXT", "username": "testuser"},
@@ -44,7 +44,7 @@ async def test_async_get_user_posts(mock_credentials):
 
 @respx.mock
 async def test_async_get_user_profile(mock_credentials):
-    respx.get("https://graph.threads.net/12345").mock(
+    respx.get("https://graph.threads.net/v1.0/12345").mock(
         return_value=httpx.Response(200, json={
             "id": "12345",
             "username": "testuser",

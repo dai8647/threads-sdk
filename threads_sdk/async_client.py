@@ -23,7 +23,7 @@ from threads_sdk.models import (
     UserProfile,
 )
 
-GRAPH_API_BASE = "https://graph.threads.net"
+GRAPH_API_BASE = "https://graph.threads.net/v1.0"
 
 
 class AsyncThreadsClient:
@@ -96,7 +96,11 @@ class AsyncThreadsClient:
 
         await self._wait_for_container(container_id)
 
-        response = await self._request("POST", f"/{container_id}/publish")
+        response = await self._request(
+            "POST",
+            "/me/threads_publish",
+            data={"creation_id": container_id},
+        )
         return ThreadsPost(id=response.json()["id"], text=text, media_type=media_type)
 
     async def create_text_post(self, text: str) -> ThreadsPost:
