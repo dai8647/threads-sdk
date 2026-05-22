@@ -21,6 +21,22 @@ SETTINGS_FILE = CONFIG_DIR / "settings.yaml"
 PERSONAS_FILE = CONFIG_DIR / "personas.yaml"
 ENV_FILE = Path(__file__).parent.parent.parent / ".env"
 
+# 9router経由で利用可能なモデル一覧
+NINEROUTER_MODELS = {
+    "1": {"id": "nvidia/nvidia/llama-3.3-nemotron-super-49b-v1", "name": "Nemotron Super 49B（高品質）"},
+    "2": {"id": "nvidia/deepseek-ai/deepseek-v4-flash", "name": "DeepSeek V4 Flash（高速）"},
+    "3": {"id": "nvidia/deepseek-ai/deepseek-v4-pro", "name": "DeepSeek V4 Pro（高品質）"},
+    "4": {"id": "opencode-go/kimi-k2.6", "name": "Kimi K2.6（無料）"},
+    "5": {"id": "opencode-go/kimi-k2.5", "name": "Kimi K2.5（無料）"},
+    "6": {"id": "opencode-go/glm-5.1", "name": "GLM 5.1（無料）"},
+    "7": {"id": "opencode-go/glm-5", "name": "GLM 5（無料）"},
+    "8": {"id": "opencode-go/qwen3.5-plus", "name": "Qwen 3.5 Plus（無料）"},
+    "9": {"id": "opencode-go/qwen3.6-plus", "name": "Qwen 3.6 Plus（無料）"},
+    "10": {"id": "opencode-go/mimo-v2-pro", "name": "Mimo V2 Pro（無料）"},
+    "11": {"id": "opencode-go/mimo-v2-omni", "name": "Mimo V2 Omni（無料）"},
+    "12": {"id": "opencode-go/minimax-m2.7", "name": "MiniMax M2.7（無料）"},
+}
+
 
 def load_yaml(path: Path) -> dict:
     if path.exists():
@@ -73,9 +89,9 @@ class Configurator:
         ))
         console.print()
         console.print("  [bold]1.[/bold] 現在の設定を表示")
-        console.print("  [bold]2.[/bold] LLM設定（NVIDIA / ローカル）")
+        console.print("  [bold]2.[/bold] LLM設定（9router / NVIDIA / ローカル）")
         console.print("  [bold]3.[/bold] Threads API設定")
-        console.print("  [bold]4.[/bold] キャラ（ペルソナ）設定")
+        console.print("  [bold]4.[/bold] キャラ（ペルソナ）管理")
         console.print("  [bold]5.[/bold] アフィリエイト設定")
         console.print("  [bold]6.[/bold] 投稿スケジュール設定")
         console.print("  [bold]7.[/bold] 投稿を開始（1回）")
@@ -118,14 +134,22 @@ class Configurator:
         posting = self.settings.get("posting", {})
         affiliate = self.settings.get("affiliate", {})
 
+        provider = llm.get("provider", "9router")
+        model = ""
+        if provider == "9router":
+            model = llm.get("9router", {}).get("model", "未設定")
+        elif provider == "nvidia":
+            model = llm.get("nvidia", {}).get("model", "未設定")
+        elif provider == "local":
+            model = llm.get("local", {}).get("model", "未設定")
+
         table = Table(title="現在の設定", show_lines=True)
         table.add_column("項目", style="cyan")
         table.add_column("値")
 
-        table.add_row("LLMプロバイダー", llm.get("provider", "nvidia"))
-        table.add_row("NVIDIAモデル", llm.get("nvidia", {}).get("model", "N/A"))
-        table.add_row("ローカルURL", llm.get("local", {}).get("url", "N/A"))
-        table.add_row("ローカルモデル", llm.get("local", {}).get("model", "N/A"))
+        table.add_row("LLMプロバイダー", provider)
+        table.add_row("モデル", model)
+        table.add_row("9router URL", llm.get("9router", {}).get("url", "http://localhost:20128/v1"))
         table.add_row("Threads User ID", threads.get("user_id", "未設定"))
         table.add_row("Threads Token", "設定済み" if self.env.get("THREADS_TOKEN") else "未設定")
         table.add_row("デフォルトキャラ", posting.get("active_persona", "未設定"))
@@ -144,40 +168,70 @@ class Configurator:
             pt.add_column("ID", style="cyan")
             pt.add_column("名前")
             pt.add_column("スタイル")
+            pt.add_column("トピック")
             for pid, p in personas.items():
-                pt.add_row(pid, p.get("name", ""), p.get("style", ""))
+                topics = ", ".join(p.get("topics", [])[:3])
+                if len(p.get("topics", [])) > 3:
+                    topics += "..."
+                pt.add_row(pid, p.get("name", ""), p.get("style", ""), topics)
             console.print(pt)
 
     def configure_llm(self) -> None:
         console.print()
         console.print("[bold]LLM設定[/bold]")
-        current = self.settings.get("llm", {}).get("provider", "nvidia")
+        current = self.settings.get("llm", {}).get("provider", "9router")
         console.print(f"現在: [cyan]{current}[/cyan]")
         console.print()
-        console.print("  1. NVIDIA API（高品質・有料）")
-        console.print("  2. ローカルLLM（無料・localhost:8080）")
+        console.print("  [bold]1.[/bold] 9router（無料・推奨）")
+        console.print("     → localhost:20128 経由で多数のモデルを利用可能")
+        console.print("     → OpenCode, NVIDIA NIM 等")
+        console.print("  [bold]2.[/bold] NVIDIA API直接（有料・高品質）")
+        console.print("  [bold]3.[/bold] ローカルLLM（無料・localhost:8080）")
         console.print()
 
-        choice = Prompt.ask("選択", choices=["1", "2"])
+        choice = Prompt.ask("選択", choices=["1", "2", "3"])
 
         if choice == "1":
-            self.settings.setdefault("llm", {})["provider"] = "nvidia"
-            api_key = Prompt.ask("NVIDIA APIキー", default=self.env.get("NVIDIA_API_KEY", ""))
-            if api_key:
-                self.env["NVIDIA_API_KEY"] = api_key
-            model = Prompt.ask("モデル", default="meta/llama-3.1-8b-instruct")
-            self.settings["llm"].setdefault("nvidia", {})["model"] = model
-            console.print("[green]NVIDIA API設定完了[/green]")
-
+            self._configure_9router()
         elif choice == "2":
-            self.settings.setdefault("llm", {})["provider"] = "local"
-            url = Prompt.ask("ローカルLLM URL", default="http://localhost:8080/v1")
-            model = Prompt.ask("モデル名", default="tq3-4s-27b")
-            self.settings["llm"].setdefault("local", {})["url"] = url
-            self.settings["llm"]["local"]["model"] = model
-            console.print("[green]ローカルLLM設定完了[/green]")
+            self._configure_nvidia_direct()
+        elif choice == "3":
+            self._configure_local()
 
         self.save_all()
+
+    def _configure_9router(self) -> None:
+        self.settings.setdefault("llm", {})["provider"] = "9router"
+        url = Prompt.ask("9router URL", default="http://localhost:20128/v1")
+        self.settings["llm"].setdefault("9router", {})["url"] = url
+
+        console.print()
+        console.print("[bold]利用可能なモデル:[/bold]")
+        for key, model in NINEROUTER_MODELS.items():
+            console.print(f"  [cyan]{key}[/cyan]. {model['name']}")
+        console.print()
+
+        model_choice = Prompt.ask("モデルを選択", choices=list(NINEROUTER_MODELS.keys()), default="4")
+        selected = NINEROUTER_MODELS[model_choice]
+        self.settings["llm"]["9router"]["model"] = selected["id"]
+        console.print(f"[green]9router設定完了: {selected['name']}[/green]")
+
+    def _configure_nvidia_direct(self) -> None:
+        self.settings.setdefault("llm", {})["provider"] = "nvidia"
+        api_key = Prompt.ask("NVIDIA APIキー", default=self.env.get("NVIDIA_API_KEY", ""))
+        if api_key:
+            self.env["NVIDIA_API_KEY"] = api_key
+        model = Prompt.ask("モデル", default="meta/llama-3.1-8b-instruct")
+        self.settings["llm"].setdefault("nvidia", {})["model"] = model
+        console.print("[green]NVIDIA API設定完了[/green]")
+
+    def _configure_local(self) -> None:
+        self.settings.setdefault("llm", {})["provider"] = "local"
+        url = Prompt.ask("ローカルLLM URL", default="http://localhost:8080/v1")
+        model = Prompt.ask("モデル名", default="tq3-4s-27b")
+        self.settings["llm"].setdefault("local", {})["url"] = url
+        self.settings["llm"]["local"]["model"] = model
+        console.print("[green]ローカルLLM設定完了[/green]")
 
     def configure_threads(self) -> None:
         console.print()
@@ -196,60 +250,217 @@ class Configurator:
 
     def configure_personas(self) -> None:
         console.print()
-        console.print("[bold]キャラ（ペルソナ）設定[/bold]")
+        console.print("[bold]キャラ（ペルソナ）管理[/bold]")
         console.print()
 
         personas = self.personas.get("personas", {})
-        for pid, p in personas.items():
-            console.print(f"  [cyan]{pid}[/cyan]: {p.get('name', '')} - {p.get('style', '')}")
+        if personas:
+            for pid, p in personas.items():
+                topics = ", ".join(p.get("topics", [])[:3])
+                console.print(f"  [cyan]{pid}[/cyan]: {p.get('name', '')} - {p.get('style', '')} [{topics}]")
+        else:
+            console.print("  [dim]キャラ未登録[/dim]")
 
         console.print()
-        console.print("  [bold]1.[/bold] キャラを追加")
+        console.print("  [bold]1.[/bold] 新しいキャラを作成")
         console.print("  [bold]2.[/bold] キャラを編集")
         console.print("  [bold]3.[/bold] キャラを削除")
+        console.print("  [bold]4.[/bold] テンプレートから作成")
         console.print("  [bold]0.[/bold] 戻る")
         console.print()
 
-        choice = Prompt.ask("選択", choices=["0", "1", "2", "3"])
+        choice = Prompt.ask("選択", choices=["0", "1", "2", "3", "4"])
 
         if choice == "1":
-            self._add_persona()
+            self._create_persona()
         elif choice == "2":
             self._edit_persona()
         elif choice == "3":
             self._delete_persona()
+        elif choice == "4":
+            self._create_from_template()
 
-    def _add_persona(self) -> None:
+    def _create_persona(self) -> None:
         console.print()
-        console.print("[bold]新しいキャラを追加[/bold]")
+        console.print(Panel("[bold]新しいキャラを作成[/bold]", border_style="cyan"))
+        console.print()
 
         pid = Prompt.ask("ID（英数字）")
         name = Prompt.ask("名前")
-        description = Prompt.ask("説明")
-        style = Prompt.ask("スタイル（例: カジュアルで親しみやすい）")
-        topics_str = Prompt.ask("トピック（カンマ区切り）")
-        topics = [t.strip() for t in topics_str.split(",")]
-        tone = Prompt.ask("トーン（例: 熱意のある）")
-        hashtags_str = Prompt.ask("ハッシュタグ（カンマ区切り、#付き）")
-        hashtags = [h.strip() for h in hashtags_str.split(",")]
+
+        console.print()
+        console.print("[bold]スタイルを選択:[/bold]")
+        console.print("  1. カジュアル（親しみやすい）")
+        console.print("  2. フレンドリー（ストーリー調）")
+        console.print("  3. 丁寧（フォーマル）")
+        console.print("  4. 熱意のある（情熱的）")
+        console.print("  5. 知的（専門的）")
+        console.print("  6. ユーモア（面白い）")
+        console.print("  7. 自分で入力")
+        style_choice = Prompt.ask("選択", choices=["1", "2", "3", "4", "5", "6", "7"], default="1")
+        styles = {"1": "カジュアルで親しみやすい", "2": "フレンドリーでストーリー調", "3": "丁寧でフォーマル", "4": "熱意のある、情熱的", "5": "知的で専門的", "6": "ユーモアがあって面白い"}
+        if style_choice == "7":
+            style = Prompt.ask("スタイルを入力")
+        else:
+            style = styles[style_choice]
+
+        console.print()
+        console.print("[bold]トピックを選択（複数選択可）:[/bold]")
+        console.print("  1. テック（Python/AI/OSS）")
+        console.print("  2. ビジネス（起業/マーケ）")
+        console.print("  3. 生活（ライフハック/時短）")
+        console.print("  4. エンタメ（映画/音楽/ゲーム）")
+        console.print("  5. 美容/ファッション")
+        console.print("  6. 食べ物/グルメ")
+        console.print("  7. 旅行/アウトドア")
+        console.print("  8. 健康/フィットネス")
+        console.print("  9. 自分で入力")
+        topic_choice = Prompt.ask("選択（カンマ区切りで複数可、例: 1,2,5）")
+        topic_map = {
+            "1": ["Python", "AI", "OSS", "プログラミング"],
+            "2": ["ビジネス", "起業", "マーケティング", "副業"],
+            "3": ["ライフハック", "時短", "生産性", "整理整頓"],
+            "4": ["エンタメ", "映画", "音楽", "ゲーム"],
+            "5": ["美容", "ファッション", "スキンケア"],
+            "6": ["食べ物", "グルメ", "料理", "レストラン"],
+            "7": ["旅行", "アウトドア", "観光"],
+            "8": ["健康", "フィットネス", "トレーニング"],
+        }
+        topics = []
+        for c in topic_choice.split(","):
+            c = c.strip()
+            if c in topic_map:
+                topics.extend(topic_map[c])
+            elif c == "9":
+                custom = Prompt.ask("トピックを入力（カンマ区切り）")
+                topics.extend([t.strip() for t in custom.split(",")])
+        if not topics:
+            topics = ["一般"]
+
+        hashtags_str = Prompt.ask("ハッシュタグ（カンマ区切り、#付き）", default="#Threads")
         emoji = Confirm.ask("絵文字を使う？", default=True)
-        post_format = Prompt.ask(
-            "投稿フォーマット",
-            default="{topic}について投稿して。200文字以内で、読みやすく、実用的なTipsを1つ教えて。"
-        )
+
+        console.print()
+        console.print("[bold]投稿ルール:[/bold]")
+        console.print("  1. 200文字以内（標準）")
+        console.print("  2. 140文字以内（短文）")
+        console.print("  3. 500文字以内（長文）")
+        console.print("  4. 自分で入力")
+        rule_choice = Prompt.ask("選択", choices=["1", "2", "3", "4"], default="1")
+        rule_map = {
+            "1": "200文字以内で投稿して。ハッシュタグは3-5個つけて。",
+            "2": "140文字以内で簡潔に投稿して。ハッシュタグは2-3個つけて。",
+            "3": "500文字以内で詳しく投稿して。ハッシュタグは5-7個つけて。",
+        }
+        if rule_choice == "4":
+            rules = Prompt.ask("ルールを入力")
+        else:
+            rules = rule_map[rule_choice]
 
         self.personas.setdefault("personas", {})[pid] = {
             "name": name,
-            "description": description,
+            "description": "",
             "style": style,
             "topics": topics,
-            "tone": tone,
-            "hashtags": hashtags,
+            "tone": style,
+            "hashtags": [h.strip() for h in hashtags_str.split(",") if h.strip()],
             "emoji": emoji,
-            "post_format": post_format,
+            "post_format": f"{{topic}}について投稿して。{rules}",
         }
         self.save_all()
-        console.print(f"[green]キャラ '{name}' を追加しました[/green]")
+        console.print(f"\n[green]キャラ '{name}' を作成しました！[/green]")
+
+    def _create_from_template(self) -> None:
+        console.print()
+        console.print("[bold]テンプレートから作成[/bold]")
+        console.print()
+        console.print("  [bold]1.[/bold] テック系エンジニア（Python/AI/OSS）")
+        console.print("  [bold]2.[/bold] AI研究者（機械学習/深層学習）")
+        console.print("  [bold]3.[/bold] カジュアルコーダー（日常開発）")
+        console.print("  [bold]4.[/bold] ビジネス系（起業/マーケティング）")
+        console.print("  [bold]5.[/bold] 生活系（ライフハック/生産性）")
+        console.print()
+
+        choice = Prompt.ask("テンプレートを選択", choices=["1", "2", "3", "4", "5"])
+
+        templates = {
+            "1": {
+                "name": "テックエンジニア",
+                "description": "Python/AI/OSSのTipsを発信",
+                "style": "カジュアルで親しみやすい",
+                "topics": ["Python", "AI", "OSS", "プログラミング", "CLIツール", "開発効率化"],
+                "tone": "熱意のある、時にユーモアを交えて",
+                "hashtags": ["#Python", "#AI", "#OpenSource", "#プログラミング"],
+                "emoji": True,
+                "post_format": "{topic}について投稿して。200文字以内で、読みやすく、実用的なTipsを1つ教えて。ハッシュタグは3-5個つけて。",
+            },
+            "2": {
+                "name": "AI研究者",
+                "description": "機械学習・深層学習の最新情報を発信",
+                "style": "丁寧で専門的",
+                "topics": ["機械学習", "深層学習", "LLM", "データサイエンス", "AI倫理"],
+                "tone": "知的で冷静、時折ネタを交えて",
+                "hashtags": ["#機械学習", "#AI", "#LLM", "#データサイエンス"],
+                "emoji": False,
+                "post_format": "{topic}について投稿して。200文字以内で、専門的だけど分かりやすく解説して。ハッシュタグは3-5個つけて。",
+            },
+            "3": {
+                "name": "カジュアルコーダー",
+                "description": "日常の開発エピソードや学びを共有",
+                "style": "フレンドリーでストーリー調",
+                "topics": ["日常開発", "学習記録", "ツール紹介", "エピソード", "生産性"],
+                "tone": "親しみやすく、共感を呼ぶ",
+                "hashtags": ["#エンジニア", "#開発", "#プログラミング"],
+                "emoji": True,
+                "post_format": "{topic}について投稿して。200文字以内で、共感できるような体験談やTipsを教えて。ハッシュタグは3-5個つけて。",
+            },
+            "4": {
+                "name": "ビジネス系",
+                "description": "起業・マーケティング・ビジネスTips",
+                "style": "プロフェッショナルだけど親しみやすい",
+                "topics": ["起業", "マーケティング", "SNS運用", "副業", "ビジネス", "投資"],
+                "tone": "信頼感のある、具体的な数字を使う",
+                "hashtags": ["#ビジネス", "#起業", "#マーケティング", "#副業"],
+                "emoji": True,
+                "post_format": "{topic}について投稿して。200文字以内で、具体的なアクションアイテム付きで教えて。ハッシュタグは3-5個つけて。",
+            },
+            "5": {
+                "name": "生活系",
+                "description": "ライフハック・生産性・日常Tips",
+                "style": "温かみのある、共感型",
+                "topics": ["ライフハック", "生産性", "健康管理", "節約", "時短", "整理整頓"],
+                "tone": "優しく、実践的な",
+                "hashtags": ["#ライフハック", "#生産性", "#日常"],
+                "emoji": True,
+                "post_format": "{topic}について投稿して。200文字以内で、今日からできる実践的なTipsを1つ教えて。ハッシュタグは3-5個つけて。",
+            },
+        }
+
+        template = templates[choice]
+        pid = Prompt.ask("ID（英数字）", default=f"custom_{choice}")
+        name = Prompt.ask("名前", default=template["name"])
+
+        # カスタマイズ
+        console.print()
+        console.print("[dim]そのままEnterでテンプレートのまま。変更したい場合は入力。[/dim]")
+        style = Prompt.ask("スタイル", default=template["style"])
+        topics_str = Prompt.ask("トピック", default=", ".join(template["topics"]))
+        tone = Prompt.ask("トーン", default=template["tone"])
+        hashtags_str = Prompt.ask("ハッシュタグ", default=", ".join(template["hashtags"]))
+        emoji = Confirm.ask("絵文字を使う？", default=template["emoji"])
+
+        self.personas.setdefault("personas", {})[pid] = {
+            "name": name,
+            "description": template["description"],
+            "style": style,
+            "topics": [t.strip() for t in topics_str.split(",") if t.strip()],
+            "tone": tone,
+            "hashtags": [h.strip() for h in hashtags_str.split(",") if h.strip()],
+            "emoji": emoji,
+            "post_format": template["post_format"],
+        }
+        self.save_all()
+        console.print(f"\n[green]キャラ '{name}' を作成しました！[/green]")
 
     def _edit_persona(self) -> None:
         pid = Prompt.ask("編集するキャラのID")
@@ -259,20 +470,23 @@ class Configurator:
             return
 
         p = personas[pid]
-        console.print(f"編集: [cyan]{p.get('name', pid)}[/cyan]")
+        console.print(f"\n編集: [cyan]{p.get('name', pid)}[/cyan]")
+        console.print("[dim]そのままEnterで現在の値を維持[/dim]")
+        console.print()
 
         p["name"] = Prompt.ask("名前", default=p.get("name", ""))
+        p["description"] = Prompt.ask("説明", default=p.get("description", ""))
         p["style"] = Prompt.ask("スタイル", default=p.get("style", ""))
         topics_str = Prompt.ask("トピック", default=", ".join(p.get("topics", [])))
-        p["topics"] = [t.strip() for t in topics_str.split(",")]
+        p["topics"] = [t.strip() for t in topics_str.split(",") if t.strip()]
         p["tone"] = Prompt.ask("トーン", default=p.get("tone", ""))
         hashtags_str = Prompt.ask("ハッシュタグ", default=", ".join(p.get("hashtags", [])))
-        p["hashtags"] = [h.strip() for h in hashtags_str.split(",")]
+        p["hashtags"] = [h.strip() for h in hashtags_str.split(",") if h.strip()]
         p["emoji"] = Confirm.ask("絵文字を使う？", default=p.get("emoji", True))
         p["post_format"] = Prompt.ask("投稿フォーマット", default=p.get("post_format", ""))
 
         self.save_all()
-        console.print(f"[green]キャラ '{p['name']}' を更新しました[/green]")
+        console.print(f"\n[green]キャラ '{p['name']}' を更新しました[/green]")
 
     def _delete_persona(self) -> None:
         pid = Prompt.ask("削除するキャラのID")
@@ -358,12 +572,30 @@ class Configurator:
         console.print("[bold]1回投稿[/bold]")
 
         personas = self.personas.get("personas", {})
-        console.print("キャラを選択:")
-        for i, (pid, p) in enumerate(personas.items()):
-            console.print(f"  {i+1}. {p.get('name', pid)}")
+        if not personas:
+            console.print("[red]キャラが未登録です。まずキャラを登録してください。[/red]")
+            return
 
-        choice = IntPrompt.ask("番号", default=1)
-        persona_id = list(personas.keys())[choice - 1] if 0 < choice <= len(personas) else list(personas.keys())[0]
+        console.print("キャラを選択:")
+        persona_list = list(personas.items())
+        for i, (pid, p) in enumerate(persona_list):
+            console.print(f"  {i+1}. {p.get('name', pid)} - {p.get('style', '')}")
+        console.print(f"  [cyan]n.[/cyan] 新しいキャラを作成して使う")
+        console.print()
+
+        choice = Prompt.ask("番号")
+
+        if choice == "n":
+            self._create_persona()
+            persona_list = list(self.personas.get("personas", {}).items())
+            persona_id = persona_list[-1][0]
+        else:
+            idx = int(choice) - 1
+            if 0 <= idx < len(persona_list):
+                persona_id = persona_list[idx][0]
+            else:
+                console.print("[red]無効な選択です[/red]")
+                return
 
         topic = Prompt.ask("トピック（空欄でランダム）", default="")
 
@@ -379,14 +611,17 @@ class Configurator:
             persona = pm.get(persona_id)
 
             llm_config = self.settings.get("llm", {})
-            provider = llm_config.get("provider", "nvidia")
+            provider = llm_config.get("provider", "9router")
 
             gen = PostGenerator(
                 provider=provider,
                 nvidia_api_key=self.env.get("NVIDIA_API_KEY", ""),
                 nvidia_model=llm_config.get("nvidia", {}).get("model", "meta/llama-3.1-8b-instruct"),
+                nvidia_base_url=llm_config.get("nvidia", {}).get("base_url", "https://integrate.api.nvidia.com/v1"),
                 local_url=llm_config.get("local", {}).get("url", "http://localhost:8080/v1"),
                 local_model=llm_config.get("local", {}).get("model", "tq3-4s-27b"),
+                ninerouter_url=llm_config.get("9router", {}).get("url", "http://localhost:20128/v1"),
+                ninerouter_model=llm_config.get("9router", {}).get("model", "opencode-go/kimi-k2.6"),
             )
 
             text = gen.generate(persona=persona, topic=topic)
@@ -433,14 +668,17 @@ class Configurator:
 
             pm = PersonaManager(PERSONAS_FILE)
             llm_config = self.settings.get("llm", {})
-            provider = llm_config.get("provider", "nvidia")
+            provider = llm_config.get("provider", "9router")
 
             gen = PostGenerator(
                 provider=provider,
                 nvidia_api_key=self.env.get("NVIDIA_API_KEY", ""),
                 nvidia_model=llm_config.get("nvidia", {}).get("model", "meta/llama-3.1-8b-instruct"),
+                nvidia_base_url=llm_config.get("nvidia", {}).get("base_url", "https://integrate.api.nvidia.com/v1"),
                 local_url=llm_config.get("local", {}).get("url", "http://localhost:8080/v1"),
                 local_model=llm_config.get("local", {}).get("model", "tq3-4s-27b"),
+                ninerouter_url=llm_config.get("9router", {}).get("url", "http://localhost:20128/v1"),
+                ninerouter_model=llm_config.get("9router", {}).get("model", "opencode-go/kimi-k2.6"),
             )
 
             creds = Credentials(
