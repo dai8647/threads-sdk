@@ -468,12 +468,23 @@ class Configurator:
         console.print(f"\n[green]キャラ '{name}' を作成しました！[/green]")
 
     def _edit_persona(self) -> None:
-        pid = Prompt.ask("編集するキャラのID")
         personas = self.personas.get("personas", {})
-        if pid not in personas:
-            console.print("[red]キャラが見つかりません[/red]")
+        if not personas:
+            console.print("[red]キャラが登録されていません[/red]")
             return
 
+        console.print()
+        persona_list = list(personas.items())
+        for i, (pid, p) in enumerate(persona_list):
+            console.print(f"  {i+1}. {p.get('name', pid)} ({pid})")
+        console.print()
+
+        choice = IntPrompt.ask("編集するキャラの番号")
+        if choice < 1 or choice > len(persona_list):
+            console.print("[red]無効な選択です[/red]")
+            return
+
+        pid = persona_list[choice - 1][0]
         p = personas[pid]
         console.print(f"\n編集: [cyan]{p.get('name', pid)}[/cyan]")
         console.print("[dim]そのままEnterで現在の値を維持[/dim]")
@@ -494,12 +505,23 @@ class Configurator:
         console.print(f"\n[green]キャラ '{p['name']}' を更新しました[/green]")
 
     def _delete_persona(self) -> None:
-        pid = Prompt.ask("削除するキャラのID")
         personas = self.personas.get("personas", {})
-        if pid not in personas:
-            console.print("[red]キャラが見つかりません[/red]")
+        if not personas:
+            console.print("[red]キャラが登録されていません[/red]")
             return
 
+        console.print()
+        persona_list = list(personas.items())
+        for i, (pid, p) in enumerate(persona_list):
+            console.print(f"  {i+1}. {p.get('name', pid)} ({pid})")
+        console.print()
+
+        choice = IntPrompt.ask("削除するキャラの番号")
+        if choice < 1 or choice > len(persona_list):
+            console.print("[red]無効な選択です[/red]")
+            return
+
+        pid = persona_list[choice - 1][0]
         if Confirm.ask(f"'{personas[pid].get('name', pid)}' を削除しますか？"):
             del personas[pid]
             self.save_all()
