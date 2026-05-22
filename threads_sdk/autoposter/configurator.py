@@ -614,19 +614,15 @@ class Configurator:
 
         image_url = None
         if post_type == "2":
-            console.print("[dim]画像を生成中...[/dim]")
+            console.print("[dim]画像を生成してアップロード中...[/dim]")
             try:
                 from threads_sdk.autoposter.imagegen import ImageGenerator
                 img_gen = ImageGenerator(output_dir=str(CONFIG_DIR / "generated_images"))
-                image_path = img_gen.generate_for_post(topic or "technology", persona.style)
-                if image_path:
-                    console.print(f"[green]画像生成完了: {image_path}[/green]")
-                    # Upload to Threads requires a URL, so we need to host it
-                    # For now, use a placeholder approach
-                    console.print("[yellow]画像投稿には画像URLが必要です。URLを入力してください。[/yellow]")
-                    image_url = Prompt.ask("画像URL", default="")
+                image_url = img_gen.generate_for_post(topic or "technology", persona.style)
+                if image_url:
+                    console.print(f"[green]画像URL: {image_url}[/green]")
                 else:
-                    console.print("[red]画像生成に失敗しました[/red]")
+                    console.print("[red]画像生成/アップロードに失敗しました[/red]")
                     image_url = ""
             except Exception as e:
                 console.print(f"[red]画像生成エラー: {e}[/red]")
