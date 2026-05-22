@@ -315,6 +315,7 @@ class Configurator:
         console.print("  7. 旅行/アウトドア")
         console.print("  8. 健康/フィットネス")
         console.print("  9. 自分で入力")
+        console.print("  0. 上記を全て選択")
         topic_choice = Prompt.ask("選択（カンマ区切りで複数可、例: 1,2,5）")
         topic_map = {
             "1": ["Python", "AI", "OSS", "プログラミング"],
@@ -327,13 +328,17 @@ class Configurator:
             "8": ["健康", "フィットネス", "トレーニング"],
         }
         topics = []
-        for c in topic_choice.split(","):
-            c = c.strip()
-            if c in topic_map:
-                topics.extend(topic_map[c])
-            elif c == "9":
-                custom = Prompt.ask("トピックを入力（カンマ区切り）")
-                topics.extend([t.strip() for t in custom.split(",")])
+        if "0" in topic_choice:
+            for v in topic_map.values():
+                topics.extend(v)
+        else:
+            for c in topic_choice.split(","):
+                c = c.strip()
+                if c in topic_map:
+                    topics.extend(topic_map[c])
+                elif c == "9":
+                    custom = Prompt.ask("トピックを入力（カンマ区切り）")
+                    topics.extend([t.strip() for t in custom.split(",")])
         if not topics:
             topics = ["一般"]
 
@@ -599,6 +604,36 @@ class Configurator:
 
         topic = Prompt.ask("トピック（空欄でランダム）", default="")
 
+        # 画像投稿オプション
+        console.print()
+        console.print("投稿タイプ:")
+        console.print("  1. テキストのみ")
+        console.print("  2. 画像＋テキスト（AI画像生成）")
+        console.print("  3. 画像＋テキスト（URL指定）")
+        post_type = Prompt.ask("選択", choices=["1", "2", "3"], default="1")
+
+        image_url = None
+        if post_type == "2":
+            console.print("[dim]画像を生成中...[/dim]")
+            try:
+                from threads_sdk.autoposter.imagegen import ImageGenerator
+                img_gen = ImageGenerator(output_dir=str(CONFIG_DIR / "generated_images"))
+                image_path = img_gen.generate_for_post(topic or "technology", persona.style)
+                if image_path:
+                    console.print(f"[green]画像生成完了: {image_path}[/green]")
+                    # Upload to Threads requires a URL, so we need to host it
+                    # For now, use a placeholder approach
+                    console.print("[yellow]画像投稿には画像URLが必要です。URLを入力してください。[/yellow]")
+                    image_url = Prompt.ask("画像URL", default="")
+                else:
+                    console.print("[red]画像生成に失敗しました[/red]")
+                    image_url = ""
+            except Exception as e:
+                console.print(f"[red]画像生成エラー: {e}[/red]")
+                image_url = ""
+        elif post_type == "3":
+            image_url = Prompt.ask("画像URL")
+
         console.print("[dim]投稿中...[/dim]")
 
         try:
@@ -633,7 +668,11 @@ class Configurator:
                 user_id=self.settings.get("threads", {}).get("user_id", ""),
             )
             client = ThreadsClient(credentials=creds)
-            post = client.create_text_post(text)
+
+            if image_url:
+                post = client.create_image_post(image_url, text)
+            else:
+                post = client.create_text_post(text)
 
             console.print(f"[green]投稿成功！ ID: {post.id}[/green]")
 
