@@ -12,4 +12,10 @@ build/
 *.so
 .venv/
 venv/
+
+# 個人設定（GitHubに上げない）
 .env
+config/settings.yaml
+config/personas.yaml
+config/post_history.json
+config/generated_images/
