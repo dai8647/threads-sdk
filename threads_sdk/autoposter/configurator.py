@@ -345,22 +345,8 @@ class Configurator:
         hashtags_str = Prompt.ask("ハッシュタグ（カンマ区切り、#付き）", default="#Threads")
         emoji = Confirm.ask("絵文字を使う？", default=True)
 
-        console.print()
-        console.print("[bold]投稿ルール:[/bold]")
-        console.print("  1. 200文字以内（標準）")
-        console.print("  2. 140文字以内（短文）")
-        console.print("  3. 500文字以内（長文）")
-        console.print("  4. 自分で入力")
-        rule_choice = Prompt.ask("選択", choices=["1", "2", "3", "4"], default="1")
-        rule_map = {
-            "1": "200文字以内で投稿して。ハッシュタグは3-5個つけて。",
-            "2": "140文字以内で簡潔に投稿して。ハッシュタグは2-3個つけて。",
-            "3": "500文字以内で詳しく投稿して。ハッシュタグは5-7個つけて。",
-        }
-        if rule_choice == "4":
-            rules = Prompt.ask("ルールを入力")
-        else:
-            rules = rule_map[rule_choice]
+        # post_formatは自動生成（選択したスタイル・トピック・ハッシュタグから）
+        post_format = ""
 
         self.personas.setdefault("personas", {})[pid] = {
             "name": name,
@@ -370,7 +356,7 @@ class Configurator:
             "tone": style,
             "hashtags": [h.strip() for h in hashtags_str.split(",") if h.strip()],
             "emoji": emoji,
-            "post_format": f"{{topic}}について投稿して。{rules}",
+            "post_format": "",
         }
         self.save_all()
         console.print(f"\n[green]キャラ '{name}' を作成しました！[/green]")
@@ -499,7 +485,7 @@ class Configurator:
         hashtags_str = Prompt.ask("ハッシュタグ", default=", ".join(p.get("hashtags", [])))
         p["hashtags"] = [h.strip() for h in hashtags_str.split(",") if h.strip()]
         p["emoji"] = Confirm.ask("絵文字を使う？", default=p.get("emoji", True))
-        p["post_format"] = Prompt.ask("投稿フォーマット", default=p.get("post_format", ""))
+        p["post_format"] = ""
 
         self.save_all()
         console.print(f"\n[green]キャラ '{p['name']}' を更新しました[/green]")

@@ -29,8 +29,18 @@ class Persona:
             import random
             topic = random.choice(self.topics)
 
-        prompt = self.post_format.format(topic=topic)
-        prompt += f"\n\nスタイル: {self.style}"
+        # post_formatが空の場合は自動生成
+        if self.post_format:
+            prompt = self.post_format.format(topic=topic)
+        else:
+            prompt = f"「{topic}」についてSNS投稿を作成してください。\n"
+            prompt += f"キャラクター: {self.name}\n"
+            prompt += f"スタイル: {self.style}\n"
+            prompt += f"トーン: {self.tone}\n"
+            prompt += "200文字以内で、読者の共感を得られるような内容にしてください。\n"
+            prompt += "商品やサービスへのリンクを自然に入れてください。\n"
+
+        prompt += f"\nスタイル: {self.style}"
         prompt += f"\nトーン: {self.tone}"
         if self.hashtags:
             prompt += f"\nハッシュタグ: {', '.join(self.hashtags)}"
